@@ -1,0 +1,8 @@
+# Dependencies — re-installable from package.json, huge, never commit
+node_modules/
+
+# Secrets & local config — must never reach GitHub
+.env
+
+# OS / editor noise
+.DS_Store
