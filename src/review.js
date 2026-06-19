@@ -49,6 +49,25 @@ export async function runReview(document) {
       content: `${reviewer.name} findings:\n${reply}`,
     })
   }
+// --- The Chair: synthesise all findings into a structured verdict ---
+  // It sees the doc + every reviewer's findings (the whole transcript),
+  // and returns JSON instead of prose.
 
+  const chairRaw = await askLLM({
+    system: chair.systemPrompt,
+    messages: transcript,
+    json: true,
+  })
+
+  // Defensive parse: JSON mode is reliable, but never trust blindly.
+  let verdict
+  try {
+    verdict = JSON.parse(chairRaw)
+
+  } catch (err) {
+    // If parsing fails, surface the raw text instead of crashing the whole review.
+    verdict = { error: 'Chair did not return valid JSON', raw: chairRaw }
+
+  }
   return findings
 }

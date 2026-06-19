@@ -19,7 +19,7 @@ const MODEL = process.env.OPENAI_MODEL || 'gpt-5-mini'
  * @param {Array}    args.messages  - the conversation so far: [{ role, content }, ...]
  * @returns {Promise<string>} the model's reply text
  */
-export async function askLLM({ system, messages }) {
+export async function askLLM({ system, messages, json = false }) {
   // Build the full message list: the system prompt first, then the conversation.
   const fullMessages = [
     { role: 'system', content: system },
@@ -30,6 +30,8 @@ export async function askLLM({ system, messages }) {
   const completion = await openai.chat.completions.create({
     model: MODEL,
     messages: fullMessages,
+    // When json is true, ask OpenAI to gurantee a syntactially valid JSON object.
+    ...MODEL(json ? { response_format: { type: 'json' } } : {}),
   })
 
   // Dig the text out of the response object and return just that.
