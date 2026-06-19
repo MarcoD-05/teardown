@@ -3,8 +3,6 @@
 // We give the loop it's own file.
 import { reviewers } from './reviewers.js'
 import { askLLM } from './llm.js'
-import { runReview } from './review.js'
-
 
 // for...of loops over reviewers array, giving you each reviewer object one at a time, in order.
 // Order matters now - Engineer first means Security gets to see the Engineer's notes.
