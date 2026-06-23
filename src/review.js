@@ -1,7 +1,7 @@
 // src/review.js
 // The review loop — runs every reviewer over one doc with a SHARED transcript.
 // We give the loop it's own file.
-import { reviewers } from './reviewers.js'
+import { reviewers, chair } from './reviewers.js'
 import { askLLM } from './llm.js'
 
 // for...of loops over reviewers array, giving you each reviewer object one at a time, in order.
@@ -69,5 +69,6 @@ export async function runReview(document) {
     verdict = { error: 'Chair did not return valid JSON', raw: chairRaw }
 
   }
-  return findings
+    return { findings, verdict }
+
 }

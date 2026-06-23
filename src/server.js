@@ -69,7 +69,7 @@ app.post('/review', async (req, res) => {
 
   try {
     const findings = await runReview(document)
-    res.json({ findings })
+    res.json(results)
   } catch (err) {
     console.error('Full review failed:', err.message)
     res.status(500).json({ error: err.message })

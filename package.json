@@ -6,7 +6,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "db:init": "node src/init-db.js"
   },
   "keywords": [],
   "author": "",
@@ -16,7 +17,8 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "helmet": "^8.2.0",
-    "openai": "^6.43.0"
+    "openai": "^6.43.0",
+    "pg": "^8.22.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
