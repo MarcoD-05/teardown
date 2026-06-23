@@ -2,17 +2,15 @@
 // Load .env values into process.env. MUST run before anything reads config.
 import 'dotenv/config'
 import { askLLM } from './llm.js'
-
 import { saveReview, getReview } from './reviews-repo.js'
-
 import { runReview } from './review.js'
-
 // Prove persona works.
 import { reviewers } from './reviewers.js'
 // Pull in the libraries we installed.
 import express from 'express'
 import helmet from 'helmet'
 import cors from 'cors'
+import { modes } from './modes.js'
 // Create the Express application — this `app` object is our whole server.
 const app = express()
 // Read config from the environment, with fallbacks if a var is missing.
@@ -62,34 +60,16 @@ System design: URL shortener.
   }
 })
 
-// Run the full pannel over a submitted design doc.
-app.post('/review', async (req, res) => {
-  const document = req.body.document
-  if (!document) {
-    return res.status(400).json({ error: 'Send a "document" field in the JSON body.' })
-  }
 
-  try {
-    const result = await runReview(document)
-    // persist it, then hand back the id alongside the result.
-    const id = await saveReview(document, result.findings, result.verdict)
-
-    res.json({ id, ...result })
-  } catch (err) {
-    console.error('Review failed:', err.message)
-    res.status(500).json({ error: err.message })
-  }
-})
 
 // Fetch a saved review by id.
 app.post('/review', async (req, res) => {
-  const document = req.body.document
+  const { document, mode } = req.body
   if (!document) {
     return res.status(400).json({ error: 'Send a "document" field in the JSON body.' })
   }
   try {
-    const result = await runReview(document)
-    // Persist it, then hand back the id alongside the result.
+    const result = await runReview(document, mode) // mode may be undefined → default kicks in
     const id = await saveReview(document, result.findings, result.verdict)
     res.json({ id, ...result })
   } catch (err) {
@@ -111,6 +91,15 @@ app.get('/reviews/:id', async (req, res) => {
     console.error('Load failed:', err.essage)
     res.status(500).json({ error: err.message })
   }
+})
+
+app.get('/modes', (req, res) => {
+  const list = Object.entries(modes).map(([id, m]) => ({
+    id,
+    name: m.name,
+    description: m.description,
+  }))
+  res.json({ modes: list })
 })
 
 // Start listening for incoming requests on PORT
