@@ -3,6 +3,8 @@
 import 'dotenv/config'
 import { askLLM } from './llm.js'
 
+import { saveReview, getReview } from './reviews-repo.js'
+
 import { runReview } from './review.js'
 
 // Prove persona works.
@@ -64,14 +66,49 @@ System design: URL shortener.
 app.post('/review', async (req, res) => {
   const document = req.body.document
   if (!document) {
-    return res.status(400).json({ error: 'Missing "document" in request body' })
+    return res.status(400).json({ error: 'Send a "document" field in the JSON body.' })
   }
 
   try {
-    const findings = await runReview(document)
-    res.json(results)
+    const result = await runReview(document)
+    // persist it, then hand back the id alongside the result.
+    const id = await saveReview(document, result.findings, result.verdict)
+
+    res.json({ id, ...result })
   } catch (err) {
-    console.error('Full review failed:', err.message)
+    console.error('Review failed:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Fetch a saved review by id.
+app.post('/review', async (req, res) => {
+  const document = req.body.document
+  if (!document) {
+    return res.status(400).json({ error: 'Send a "document" field in the JSON body.' })
+  }
+  try {
+    const result = await runReview(document)
+    // Persist it, then hand back the id alongside the result.
+    const id = await saveReview(document, result.findings, result.verdict)
+    res.json({ id, ...result })
+  } catch (err) {
+    console.error('Review failed:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Fetch a saved review by id.
+app.get('/reviews/:id', async (req, res) => {
+  try {
+    const review = await getReview(req.params.id)
+    if (!review) {
+      return res.status(404).json({ error: 'Review not found' })
+
+    }
+    res.json(review)
+  } catch (err) {
+    console.error('Load failed:', err.essage)
     res.status(500).json({ error: err.message })
   }
 })
