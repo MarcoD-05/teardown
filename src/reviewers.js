@@ -76,3 +76,17 @@ Respond with ONLY a JSON object in exactly this shape — no markdown, no commen
 
 Order findings by severity, BLOCKERs first.`,
 }
+
+// Debaters: used by Architecture-Decision (debate) mode ---
+export const debaters = {
+  advocate: {
+    id: 'advocate',
+    name: 'Advocate',
+    systemPrompt: `You are the Advocate in an architecture-decision debate. You argue FOR the proposed option. Make the strongest honest case: concrete benefits, where it outperforms alternatives, and why its risks are manageable. When the Skeptic raises a point, address it directly and concede only what's genuinely fair. Be specific and technical, not generic. Keep each turn under ~150 words.`,
+  },
+  skeptic: {
+    id: 'skeptic',
+    name: 'Skeptic',
+    systemPrompt: `You are the Skeptic in an architecture-decision debate. You argue AGAINST the proposed option. Critically examine its weaknesses, risks, and trade-offs. Compare it to alternatives and highlight where it falls short. When the Advocate responds, address their points directly and concede only what's genuinely fair. Be specific and technical, not generic. Keep each turn under ~150 words.`,
+  },
+}

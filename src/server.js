@@ -11,6 +11,7 @@ import express from 'express'
 import helmet from 'helmet'
 import cors from 'cors'
 import { modes } from './modes.js'
+import { runDebate } from './debate.js'
 // Create the Express application — this `app` object is our whole server.
 const app = express()
 // Read config from the environment, with fallbacks if a var is missing.
@@ -100,6 +101,21 @@ app.get('/modes', (req, res) => {
     description: m.description,
   }))
   res.json({ modes: list })
+})
+
+// Architecture-decision debate: Advocate vs Skeptic, then Chair calls it.
+app.post('/debate', async (req,res) => {
+  const { decision, rounds } = req.body
+  if (!decision) {
+    return res.status(400).json({ error: 'Send a "decision" field in the JSON body.' })
+  }
+  try {
+    const result = await runDebate(decision, rounds || 3)
+    res.json(result)
+  } catch (err) {
+    console.error('Debate failed:', err.message)
+    res.status(500).json({ error: err.message })
+  }
 })
 
 // Start listening for incoming requests on PORT
