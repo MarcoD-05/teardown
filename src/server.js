@@ -12,6 +12,10 @@ import helmet from 'helmet'
 import cors from 'cors'
 import { modes } from './modes.js'
 import { runDebate } from './debate.js'
+import rateLimit from 'express-rate-limit'
+
+import path from 'path'
+import { fileURLToPath } from 'url'
 // Create the Express application — this `app` object is our whole server.
 const app = express()
 // Read config from the environment, with fallbacks if a var is missing.
@@ -23,6 +27,14 @@ if (NODE_ENV === 'production') {
 }
 app.use(cors()) // allow cross-origin requests
 app.use(express.json()) // parse JSON request bodies into JS objects
+
+// Limit the expensive LLM endpoints: max 10 requests per IP per 15 minutes.
+const llmLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  message: { error: 'Too many reviews from this IP. Try again later.' },
+})
+app.use(['/review', '/debate'], llmLimiter)
 
 // Routes: "when a request hits this URL, run this function"
 app.get('/health', (req, res) => {
@@ -116,6 +128,18 @@ app.post('/debate', async (req,res) => {
     console.error('Debate failed:', err.message)
     res.status(500).json({ error: err.message })
   }
+})
+
+// --- Serve the built React frontend in production ---
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const clientDist = path.join(__dirname, '..', 'client', 'dist')
+
+// Serve the static built files (JS/CSS/index.html).
+app.use(express.static(clientDist))
+
+// For any non-API route, send index.html so React Router/the SPA handles it.
+app.get('/*splat', (req, res) => {
+  res.sendFile(path.join(clientDist, 'index.html'))
 })
 
 // Start listening for incoming requests on PORT

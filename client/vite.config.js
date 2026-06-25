@@ -6,13 +6,11 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      // Any request to /api/* gets forwarded to the Express backend.
-      '/api': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-        // strip the /api prefix before forwarding: /api/review -> /review
-        rewrite: (path) => path.replace(/^\/api/, ''),
-      },
+      '/modes': 'http://localhost:3000',
+      '/review': 'http://localhost:3000',
+      '/reviews': 'http://localhost:3000',
+      '/debate': 'http://localhost:3000',
+    },
     },
   },
-})
+)
