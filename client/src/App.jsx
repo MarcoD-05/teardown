@@ -12,7 +12,7 @@ function App() {
 
   // Load the modes once on mount (same as before).
   useEffect(() => {
-    fetch('/api/modes')
+    fetch('/modes')
       .then((res) => res.json())
       .then((data) => setModes(data.modes))
       .catch((err) => console.error('Failed to load modes:', err))
@@ -29,7 +29,7 @@ function App() {
     setResult(null)    // clear any old result
 
     try {
-      const res = await fetch('/api/review', {
+      const res = await fetch('/review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ document, mode: selectedMode }),
