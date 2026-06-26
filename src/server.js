@@ -18,6 +18,8 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 // Create the Express application — this `app` object is our whole server.
 const app = express()
+// Rate limiter fix
+app.set('trust proxy', 1)
 // Read config from the environment, with fallbacks if a var is missing.
 const PORT = process.env.PORT || 3000
 const NODE_ENV = process.env.NODE_ENV || 'development'
