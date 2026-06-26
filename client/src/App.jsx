@@ -8,7 +8,9 @@ function App() {
   const [document, setDocument] = useState('')       // the design doc text the user types
   const [result, setResult] = useState(null)         // the review result from the backend
   const [loading, setLoading] = useState(false)      // true while the review is running
-  const [error, setError] = useState(null)           // any error message to show
+  const [error, setError] = useState(null)
+  const [inputMode, setInputMode] = useState('doc') // 'doc' or 'pr'
+  const [prUrl, setPrUrl] = useState('')           // any error message to show
 
   // Load the modes once on mount (same as before).
   useEffect(() => {
@@ -44,6 +46,36 @@ function App() {
     }
   }
 
+  // Handler for the PR review
+  async function handlePrReview() {
+    if (!prUrl.trim()) {
+      setError('Paste a GitHub PR URL first.')
+      return
+    }
+    setLoading(true)
+    setError(null)
+    setResult(null)
+    try {
+      const res = await fetch('/review-pr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prUrl, mode: selectedMode }),
+      })
+      if (!res.ok) throw new Error(`Server returned ${res.status}`)
+      const data = await res.json()
+      setResult(data)
+    // refresh the history sidebar so this PR review appears
+    fetch('/reviews')
+      .then((r) => r.json())
+      .then((d) => setHistory(d.reviews))
+      .catch(() => {})
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Pick a colour for each severity badge.
   function severityColor(severity) {
     if (severity === 'BLOCKER') return '#dc2626'
@@ -56,6 +88,21 @@ function App() {
     <div className="container">
       <h1>Crucible</h1>
       <p className="subtitle">AI design-review panel</p>
+
+      <div className="input-toggle">
+  <button
+    className={inputMode === 'doc' ? 'active' : ''}
+    onClick={() => setInputMode('doc')}
+  >
+    Paste a doc
+  </button>
+  <button
+    className={inputMode === 'pr' ? 'active' : ''}
+    onClick={() => setInputMode('pr')}
+  >
+    Review a GitHub PR
+  </button>
+</div>
 
       {/* Mode picker */}
       <label className="field-label">Review mode</label>
@@ -71,17 +118,34 @@ function App() {
       </select>
 
       {/* Document input */}
-      <label className="field-label">Design document</label>
-      <textarea
-        value={document}
-        onChange={(e) => setDocument(e.target.value)}
-        placeholder="Paste your design doc, RFC, or architecture description here..."
-        rows={10}
-      />
-
-      <button onClick={handleReview} disabled={loading}>
-        {loading ? 'Reviewing… (~20s)' : 'Run Review'}
-      </button>
+      {inputMode === 'doc' ? (
+  <>
+    <label className="field-label">Design document</label>
+    <textarea
+      value={document}
+      onChange={(e) => setDocument(e.target.value)}
+      placeholder="Paste your design doc, RFC, or architecture description here..."
+      rows={10}
+    />
+    <button onClick={handleReview} disabled={loading}>
+      {loading ? 'Reviewing… (~20s)' : 'Run Review'}
+    </button>
+  </>
+) : (
+  <>
+    <label className="field-label">GitHub PR URL</label>
+    <input
+      type="text"
+      value={prUrl}
+      onChange={(e) => setPrUrl(e.target.value)}
+      placeholder="https://github.com/owner/repo/pull/123"
+      style={{ width: '100%', padding: '0.6rem', fontSize: '1rem', boxSizing: 'border-box' }}
+    />
+    <button onClick={handlePrReview} disabled={loading}>
+      {loading ? 'Reviewing PR… (~20s)' : 'Review PR'}
+    </button>
+  </>
+)}
 
       {error && <p className="error">⚠️ {error}</p>}
 
