@@ -13,6 +13,7 @@ import cors from 'cors'
 import { modes } from './modes.js'
 import { runDebate } from './debate.js'
 import rateLimit from 'express-rate-limit'
+import { fetchPrAsDocument } from './github.js'
 
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -89,6 +90,23 @@ app.post('/review', async (req, res) => {
     res.json({ id, ...result })
   } catch (err) {
     console.error('Review failed:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Review a real GitHub PR by URL.
+app.post('/review-pr', async (req, res) => {
+  const { prUrl, mode } = req.body
+  if (!prUrl) {
+    return res.status(400).json({ error: 'Send a "prUrl" field (a GitHub PR link).' })
+  }
+  try {
+    const { title, document } = await fetchPrAsDocument(prUrl)
+    const result = await runReview(document, mode)
+    const id = await saveReview(document, result.findings, result.verdict)
+    res.json({ id, prTitle: title, ...result })
+  } catch (err) {
+    console.error('PR review failed:', err.message)
     res.status(500).json({ error: err.message })
   }
 })
