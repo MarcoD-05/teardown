@@ -14,6 +14,7 @@ import { modes } from './modes.js'
 import { runDebate } from './debate.js'
 import rateLimit from 'express-rate-limit'
 import { fetchPrAsDocument } from './github.js'
+import { strictnessLevels } from './strictness.js'
 
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -80,12 +81,12 @@ System design: URL shortener.
 
 // Fetch a saved review by id.
 app.post('/review', async (req, res) => {
-  const { document, mode } = req.body
+  const { document, mode, strictness } = req.body
   if (!document) {
     return res.status(400).json({ error: 'Send a "document" field in the JSON body.' })
   }
   try {
-    const result = await runReview(document, mode) // mode may be undefined → default kicks in
+    const result = await runReview(document, mode, strictness) // mode may be undefined → default kicks in
     const id = await saveReview(document, result.findings, result.verdict)
     res.json({ id, ...result })
   } catch (err) {
@@ -96,13 +97,13 @@ app.post('/review', async (req, res) => {
 
 // Review a real GitHub PR by URL.
 app.post('/review-pr', async (req, res) => {
-  const { prUrl, mode } = req.body
+  const { prUrl, mode, strictness } = req.body
   if (!prUrl) {
     return res.status(400).json({ error: 'Send a "prUrl" field (a GitHub PR link).' })
   }
   try {
     const { title, document } = await fetchPrAsDocument(prUrl)
-    const result = await runReview(document, mode)
+    const result = await runReview(document, mode, strictness)
     const id = await saveReview(document, result.findings, result.verdict)
     res.json({ id, prTitle: title, ...result })
   } catch (err) {
@@ -133,6 +134,16 @@ app.get('/modes', (req, res) => {
     description: m.description,
   }))
   res.json({ modes: list })
+})
+
+// List available strictness levels for the UI picker.
+app.get('/strictness', (req, res) => {
+  const levels = Object.entries(strictnessLevels).map(([id, s]) => ({
+    id,
+    name: s.name,
+    description: s.description,
+  }))
+  res.json({ strictness: levels })
 })
 
 // Architecture-decision debate: Advocate vs Skeptic, then Chair calls it.

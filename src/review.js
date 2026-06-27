@@ -2,12 +2,19 @@
 import { reviewers, chair } from './reviewers.js'
 import { askLLM } from './llm.js'
 import { modes, DEFAULT_MODE } from './modes.js'
+import { strictnessLevels, DEFAULT_STRICTNESS } from './strictness.js'
 
-export async function runReview(document, modeId = DEFAULT_MODE) {
-  console.log('runReview got mode:', modeId)   // ← debug line
+export async function runReview(
+  document,
+  modeId = DEFAULT_MODE,
+  strictnessId = DEFAULT_STRICTNESS  // new third parameter
+) {
   
   // Look up the mode; fall back to the default if it's unknown.
   const mode = modes[modeId] || modes[DEFAULT_MODE]
+
+  // Resolve strictness, falling back to standard if an unknown id arrives.
+  const strictness = strictnessLevels[strictnessId] || strictnessLevels[DEFAULT_STRICTNESS]
 
   // Select only the reviewers this mode calls for.
   const activeReviewers = mode.reviewerIds
@@ -21,7 +28,7 @@ export async function runReview(document, modeId = DEFAULT_MODE) {
 
   for (const reviewer of activeReviewers) {
     const reply = await askLLM({
-      system: reviewer.systemPrompt,
+      system: `${reviewer.systemPrompt}\n\n${strictness.reviewerGuidance}`,
       messages: transcript,
     })
     findings.push({ id: reviewer.id, name: reviewer.name, review: reply })
@@ -37,7 +44,7 @@ export async function runReview(document, modeId = DEFAULT_MODE) {
     : chair.systemPrompt
 
   const chairRaw = await askLLM({
-    system: chairSystem,
+    system: `${chairSystem}\n\n${strictness.chairGuidance}`,
     messages: transcript,
     json: true,
   })

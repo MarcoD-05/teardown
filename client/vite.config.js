@@ -7,6 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/modes': 'http://localhost:3000',
+      '/strictness': 'http://localhost:3000',
       '/review': 'http://localhost:3000',
       '/reviews': 'http://localhost:3000',
       '/debate': 'http://localhost:3000',

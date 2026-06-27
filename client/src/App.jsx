@@ -11,13 +11,23 @@ function App() {
   const [error, setError] = useState(null)
   const [inputMode, setInputMode] = useState('doc') // 'doc' or 'pr'
   const [prUrl, setPrUrl] = useState('')           // any error message to show
+  const [strictnessLevels, setStrictnessLevels] = useState([])
+  const [selectedStrictness, setSelectedStrictness] = useState('standard')
 
-  // Load the modes once on mount (same as before).
+ // Load the modes once on mount.
   useEffect(() => {
     fetch('/modes')
-      .then((res) => res.json())
-      .then((data) => setModes(data.modes))
-      .catch((err) => console.error('Failed to load modes:', err))
+      .then((r) => r.json())
+      .then((d) => setModes(d.modes))
+      .catch((err) => console.error('modes fetch failed:', err))
+  }, [])
+
+  // Load the strictness levels once on mount.
+  useEffect(() => {
+    fetch('/strictness')
+      .then((r) => r.json())
+      .then((d) => setStrictnessLevels(d.strictness))
+      .catch((err) => console.error('strictness fetch failed:', err))
   }, [])
 
   // Runs when the user clicks "Run Review".
@@ -34,7 +44,7 @@ function App() {
       const res = await fetch('/review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ document, mode: selectedMode }),
+        body: JSON.stringify({ document, mode: selectedMode, strictness: selectedStrictness }),
       })
       if (!res.ok) throw new Error(`Server returned ${res.status}`)
       const data = await res.json()
@@ -59,7 +69,7 @@ function App() {
       const res = await fetch('/review-pr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prUrl, mode: selectedMode }),
+        body: JSON.stringify({ prUrl, mode: selectedMode, strictness: selectedStrictness }),
       })
       if (!res.ok) throw new Error(`Server returned ${res.status}`)
       const data = await res.json()
@@ -116,6 +126,18 @@ function App() {
           </option>
         ))}
       </select>
+
+      <label className="field-label">Strictness</label>
+<select
+  value={selectedStrictness}
+  onChange={(e) => setSelectedStrictness(e.target.value)}
+>
+  {strictnessLevels.map((s) => (
+    <option key={s.id} value={s.id}>
+      {s.name}
+    </option>
+  ))}
+</select>
 
       {/* Document input */}
       {inputMode === 'doc' ? (
