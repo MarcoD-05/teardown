@@ -38,7 +38,7 @@ const llmLimiter = rateLimit({
   max: 10,
   message: { error: 'Too many reviews from this IP. Try again later.' },
 })
-app.use(['/review', '/debate'], llmLimiter)
+app.use(['/review', '/review-pr', '/review-stream', '/debate'], llmLimiter)
 
 // Routes: "when a request hits this URL, run this function"
 app.get('/health', (req, res) => {
@@ -77,23 +77,101 @@ System design: URL shortener.
   }
 })
 
+// Streaming version of /review. Accepts either a pasted document OR a GitHub
+// PR URL, streams progress as the panel works, and persists the result at the
+// end so streamed reviews land in the DB just like /review.
+app.post('/review-stream', async (req, res) => {
+  const { document, prUrl, mode, strictness } = req.body
 
-
-// Fetch a saved review by id.
-app.post('/review', async (req, res) => {
-  const { document, mode, strictness } = req.body
-  if (!document) {
-    return res.status(400).json({ error: 'Send a "document" field in the JSON body.' })
+  // Resolve what we're reviewing: a pasted doc, or a PR turned into a doc.
+  // We fetch the PR BEFORE opening the stream, so a fetch failure can return a
+  // normal error status instead of a half-open event stream.
+  let doc = document
+  let prTitle = null
+  if (prUrl) {
+    try {
+      const fetched = await fetchPrAsDocument(prUrl)
+      doc = fetched.document
+      prTitle = fetched.title
+    } catch (err) {
+      return res.status(502).json({ error: `Failed to fetch PR: ${err.message}` })
+    }
   }
+
+  if (!doc || !doc.trim()) {
+    return res.status(400).json({ error: 'Provide a "document" or a "prUrl".' })
+  }
+
+  // SSE headers: live event stream, no caching/buffering.
+  res.setHeader('Content-Type', 'text/event-stream')
+  res.setHeader('Cache-Control', 'no-cache')
+  res.setHeader('Connection', 'keep-alive')
+  res.setHeader('X-Accel-Buffering', 'no')
+  res.flushHeaders()
+
+  // Write one SSE event ("data: {...}\n\n").
+  const send = (event) => {
+    res.write(`data: ${JSON.stringify(event)}\n\n`)
+  }
+
+  // If this was a PR, tell the UI its title up front.
+  if (prTitle) send({ type: 'pr-title', title: prTitle })
+
   try {
-    const result = await runReview(document, mode, strictness) // mode may be undefined → default kicks in
-    const id = await saveReview(document, result.findings, result.verdict)
-    res.json({ id, ...result })
+    // Capture runReview's return so we can persist after streaming finishes.
+    const result = await runReview(doc, mode, strictness, send)
+
+    // Persist exactly like /review, so this review is saved and retrievable.
+    const id = await saveReview(doc, result.findings, result.verdict)
+
+    // Mirror /review's response: tell the UI the saved id (last event).
+    send({ type: 'saved', id })
   } catch (err) {
-    console.error('Review failed:', err.message)
-    res.status(500).json({ error: err.message })
+    send({ type: 'error', message: err.message })
+  } finally {
+    res.end()
   }
 })
+
+// Streaming version of /review. Same inputs, but instead of returning one
+// JSON blob at the end, it streams progress events as the panel works,
+// using Server-Sent Events (SSE) sent over a POST response.
+app.post('/review-stream', async (req, res) => {
+  const { document, mode, strictness } = req.body
+
+  // Same guard as /review: reject an empty document before opening the stream.
+  if (!document || !document.trim()) {
+    return res.status(400).json({ error: 'document is required' })
+  }
+
+  // SSE headers: tell the browser this is a live event stream (not a normal
+  // response) and to keep it open without caching or buffering.
+  res.setHeader('Content-Type', 'text/event-stream')
+  res.setHeader('Cache-Control', 'no-cache')
+  res.setHeader('Connection', 'keep-alive')
+  res.setHeader('X-Accel-Buffering', 'no') // stop proxy buffering (e.g. Render) so events arrive live
+  res.flushHeaders() // open the stream immediately
+
+  // Write one event in SSE format: "data: {...}\n\n". The blank line is the
+  // SSE record separator — clients split incoming text on it.
+  const send = (event) => {
+    res.write(`data: ${JSON.stringify(event)}\n\n`)
+  }
+
+  try {
+    // Pass `send` as onEvent so every emit point in runReview (start,
+    // reviewer-start, reviewer-done, chair-start, verdict) streams straight
+    // to the browser the moment it happens.
+    await runReview(document, mode, strictness, send)
+  } catch (err) {
+    // Headers are already sent, so we can't set an error status code now —
+    // stream an error event the frontend can handle instead.
+    send({ type: 'error', message: err.message })
+  } finally {
+    res.end() // close the stream so the client knows it's finished
+  }
+})
+
 
 // Review a real GitHub PR by URL.
 app.post('/review-pr', async (req, res) => {
