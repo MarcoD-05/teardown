@@ -1,4 +1,3 @@
-// Verdict card + finding + open questions, tone-class logic moved in here
 export default function Verdict({ verdict }) {
   const tone =
     verdict.verdict === 'BLOCKED' ? 'blocked' :
